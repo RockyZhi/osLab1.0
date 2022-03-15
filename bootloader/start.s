@@ -18,8 +18,9 @@ start:
 	data32 addr32 lgdt gdtDesc 
 
 	# TODO: 把cr0的最低位设置为1
-
-
+	movl %cr0,%eax
+	orb $1,%al
+	movl %eax,%cr0
 
 	# 长跳转切换到保护模式
 	data32 ljmp $0x08, $start32 
@@ -37,7 +38,25 @@ start32:
 	movl %eax, %esp
 
 	# TODO：编写输出函数，输出"Hello World" （Hint:参考app.s！！！）
-
+	pushl $13
+	pushl $message
+	call displayStr
+loop32:
+	jmp loop32
+message:
+	.string "Hello,WOrld!\n\0"
+displayStr:
+	movl 4(%esp),%ebx
+	movl 8(%esp),%ecx
+	movl $((80*5+0)*2),%edi
+	movb $0x0c,%ah
+nextChar:
+	movb (%ebx),%al
+	movw %ax,%gs:(%edi)
+	addl $2,%edi
+	incl %ebx
+	loopnz nextChar
+	ret
 
 
 
@@ -52,16 +71,18 @@ gdt:
 	.byte 0,0,0,0
 
 	# TODO：代码段描述符，对应cs
-	.word
-	.byte 
+	.word 0xffff, 0 # LIMIT[15..0], BASE[15..0]
+	.byte 0, 0x9a, 0xcf, 0 # BASE[23..16], P/DPL/S/TYPE/A, ..., BASE[31..24]
 
 	# TODO：数据段描述符，对应ds
-	.word
-	.byte 
+	.word 0xffff, 0
+	.byte 0, 0x92, 0xcf, 0
 
 	# TODO：图像段描述符，对应gs
-	.word
-	.byte 
+	# Base address of this segment is 0xb8000.
+	# But 1 word cannot express 0xb8000, so we move 0x0b into BASE[23..16].
+	.word 0xffff, 0x8000
+	.byte 0x0b, 0x92, 0xcf, 0
 
 
 gdtDesc: 
